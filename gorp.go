@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-gorp/gorp/recurse"
+	"github.com/zew/gorp/recurse"
 )
 
 var logl = log.New(os.Stdout, "", log.Lshortfile)
