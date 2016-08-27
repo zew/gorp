@@ -35,14 +35,17 @@ type ColumnMap struct {
 	// correct column type to map to in CreateTables()
 	MaxSize int
 
-	// DefaultValue is applied on SQL level, at insertion time.
+	// DefaultValue is applied at SQL level
+	// such as 'INSERT ... VALUES (... , DefaultValue, ...)'.
 	// It is not set as column default at database level, which is confusing.
 	// If set, the struct value before insertion is ignored, which is confusing.
-	// The inserted server side value is not reflected in the golang struct either, which is confusing.
-	// One has to refetch the object, contrary to the primary key, which is confusing.
+	// The inserted server side value is not reflected in the resulting
+	// golang struct either, which is confusing.
+	// One has to refetch the object, which is confusing.
 	// Golang's automatic initialization with zero values,
-	// and its absense of "NULL" prevent any solution to these problems.
-	// Therefore, we should just use a NewMytype() function to set defaults.
+	// and its absense of "NULL" prevent a classic solution to these problems.
+	// But a [type].PreInsert() method accomplishes setting defaults.
+	// So "DefaultValue" appears useless and misleading.
 	DefaultValue string
 
 	// To re-create existing database schemata,

@@ -26,7 +26,7 @@ type TableMap struct {
 	SchemaName     string
 	gotype         reflect.Type
 	Columns        []*ColumnMap
-	keys           []*ColumnMap
+	keys           []*ColumnMap // primary key column; can be autoIncrement
 	indexes        []*IndexMap
 	uniqueTogether [][]string
 	version        *ColumnMap
@@ -70,6 +70,19 @@ func (t *TableMap) SetKeys(isAutoIncr bool, fieldNames ...string) *TableMap {
 	}
 	t.ResetSql()
 
+	return t
+}
+
+// Insert statements are wrapped with lots of special logic
+// for primary key columns with or without auto increment.
+// However, when we want to *clone* a table with identical source ids,
+// this behavior is unwanted.
+func (t *TableMap) RemoveKeys() *TableMap {
+	return t.MakePlainlyInsertable()
+}
+func (t *TableMap) MakePlainlyInsertable() *TableMap {
+	t.keys = []*ColumnMap{} // remove primary key, remove autoincrement
+	t.ResetSql()
 	return t
 }
 
