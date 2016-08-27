@@ -77,11 +77,12 @@ func (t *TableMap) SetKeys(isAutoIncr bool, fieldNames ...string) *TableMap {
 // for primary key columns with or without auto increment.
 // However, when we want to *clone* a table with identical source ids,
 // this behavior is unwanted.
-func (t *TableMap) RemoveKeys() *TableMap {
-	return t.MakePlainlyInsertable()
-}
-func (t *TableMap) MakePlainlyInsertable() *TableMap {
+func (t *TableMap) EnablePlainInserts() *TableMap {
 	t.keys = []*ColumnMap{} // remove primary key, remove autoincrement
+	for i := 0; i < len(t.Columns); i++ {
+		t.Columns[i].isPK = false
+		t.Columns[i].isAutoIncr = false
+	}
 	t.ResetSql()
 	return t
 }

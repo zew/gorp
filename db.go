@@ -47,6 +47,12 @@ type DbMap struct {
 	logPrefix string
 }
 
+func (m *DbMap) EnablePlainInserts() {
+	for _, table := range m.tables {
+		table.EnablePlainInserts()
+	}
+}
+
 func (m *DbMap) CreateIndex() error {
 
 	var err error
