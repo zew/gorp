@@ -32,6 +32,7 @@ type TableMap struct {
 	version        *ColumnMap
 	insertPlan     bindPlan
 	updatePlan     bindPlan
+	colFilter      ColumnFilter // different column filters lead to different updatePlans
 	deletePlan     bindPlan
 	getPlan        bindPlan
 	dbmap          *DbMap
