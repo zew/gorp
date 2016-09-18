@@ -2,13 +2,12 @@ package recurse
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
-	"testing"
-
-	"github.com/zew/logx"
 )
 
+// old version
 func recurseStruct(obj interface{}, depth int) {
 
 	v := reflect.ValueOf(obj)
@@ -24,7 +23,7 @@ func recurseStruct(obj interface{}, depth int) {
 		subType := v.Field(i).Type().Name()
 		realVal := v.Field(i).Interface()
 
-		logx.Printf("%s\t%d: %-12s %-12s = %+v  \n", indent, i, fieldName, subType, realVal)
+		log.Printf("%s\t%d: %-12s %-12s = %+v  \n", indent, i, fieldName, subType, realVal)
 
 		anon := v.Type().Field(i).Anonymous
 		kind := v.Type().Kind()
@@ -33,8 +32,4 @@ func recurseStruct(obj interface{}, depth int) {
 			recurseStruct(realVal, depth+1)
 		}
 	}
-}
-
-func Test_2(t *testing.T) {
-	// recurseStruct(t1, 0)
 }
