@@ -42,10 +42,10 @@ type DbMap struct {
 
 	TypeConverter TypeConverter
 
-	tables    []*TableMap
+	tables        []*TableMap
 	tablesDynamic map[string]*TableMap // tables that use same go-struct and different db table names
-	logger    GorpLogger
-	logPrefix string
+	logger        GorpLogger
+	logPrefix     string
 }
 
 func (m *DbMap) dynamicTableAdd(tableName string, tbl *TableMap) {
@@ -295,7 +295,7 @@ func (m *DbMap) readStructColumns(t reflect.Type) (cols []*ColumnMap, primaryKey
 					isPK = true
 				case "autoincrement":
 					isAuto = true
-				case "notnull","not null":
+				case "notnull", "not null":
 					isNotNull = true
 				default:
 					panic(fmt.Sprintf("Unrecognized tag option for field %v: %v", f.Name, arg))
@@ -779,10 +779,8 @@ func (m *DbMap) trace(started time.Time, query string, args ...interface{}) {
 	}
 }
 
-
 func (m *DbMap) EnablePlainInserts() {
 	for _, table := range m.tables {
 		table.EnablePlainInserts()
 	}
 }
-
