@@ -48,14 +48,6 @@ type ColumnMap struct {
 	// So "DefaultValue" appears useless and misleading.
 	DefaultValue string
 
-	// To re-create existing database schemata,
-	// and to comply with legacy non golang applications,
-	// we may set a server side default value.
-	// It is however never reflected in the golang structs,
-	// because those are always initialized and inserted
-	// with *their* zero values.
-	ServerDefaultValue string
-
 	fieldName  string
 	gotype     reflect.Type
 	isPK       bool

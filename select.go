@@ -274,15 +274,14 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 	var fieldsIdxChains [][][]int
 	if intoStruct {
 		_, fieldsIdxChains, err = colToFieldIdxChain(m, t, i, tableName, cols)
-		// logl.Printf("%s", util.IndentedDump(fieldsIdxChains))
 		if err != nil {
 			if !NonFatalError(err) {
 				return nil, err
 			}
 			nonFatalErr = err
-			if err != nil {
-				logl.Printf("SETTING MISSING COLUMN ERROR: %v", err)
-			}
+			// if err != nil {
+			// 	log.Printf("Info: Setting missing column error: %v", err)
+			// }
 		}
 	}
 
@@ -293,7 +292,6 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 		list       = make([]interface{}, 0)
 		sliceValue = reflect.Indirect(reflect.ValueOf(i))
 	)
-	// logl.Printf("sliceValue %v - %T - %T\n", sliceValue, sliceValue, sliceValue.Interface())
 
 	rowsCount := 0
 	for {
@@ -314,14 +312,8 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 		}
 
 		dest := make([]interface{}, len(cols))
-		// logl.Printf("Dest numColumns: %v - %T\n", len(dest), dest)
-
 		custScan := make([]CustomScanner, 0)
-
-		dbg := v.Elem()
-		if rowsCount < 3 {
-			logl.Printf("rawSelect03 into %v %T", dbg.Kind(), dbg.Interface())
-		}
+		// dbg := v.Elem()
 
 		for x := range cols {
 			if intoStruct {
@@ -340,20 +332,18 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 
 					for _, fieldChain := range fieldsIdxChains[x] {
 						f := v.Elem()
-						// for _, fldIdx := range fieldInstance { // old
-						// }
 						func() {
-							defer func() {
-								if r := recover(); r != nil {
-									logl.Printf("ERROR in field index chain: %v %v - %v", x, fieldsIdxChains[x], r)
-								}
-							}()
+							// defer func() {
+							// 	if r := recover(); r != nil {
+							// 		log.Errorf("ERROR in field index chain: %v %v - %v", x, fieldsIdxChains[x], r)
+							// 	}
+							// }()
 							f = f.FieldByIndex(fieldChain)
 						}()
 						target := f.Addr().Interface() // make to pointer
-						if rowsCount < 2 && x < 10 {
-							logl.Printf("\trawSelect11-%-2v %-24v %-14v %-14v %+v  => %T", x, cols[x], f.Kind(), f.Type(), fieldChain, target)
-						}
+						// if rowsCount < 2 && x < 10 {
+						// 	log.Printf("\trawSelect11-%-2v %-24v %-14v %-14v %+v  => %T", x, cols[x], f.Kind(), f.Type(), fieldChain, target)
+						// }
 						// Custom scanner
 						if conv != nil {
 							scanner, ok := conv.FromDb(target)
@@ -368,7 +358,6 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 				}
 			} else {
 				dest[0] = v.Elem().Addr().Interface()
-				// logl.Printf("rawSelect05 - scalar %#v \n", dest)
 			}
 		}
 
@@ -376,8 +365,6 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 		if err != nil {
 			return nil, err
 		}
-
-		// logl.Printf("\trawSelect04 - %v", len(dest))
 
 		for _, c := range custScan {
 			err = c.Bind()
@@ -389,10 +376,7 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 		//
 		//
 		//
-		if rowsCount < 3 {
-			logl.Printf("post scan treatment of duplicate columns\n")
-			// 	v.Elem().FieldByIndex([]int{0}).SetString("aaa")
-		}
+		// post scan treatment of duplicate columns
 		for x := range cols {
 			if intoStruct {
 				fieldChains := fieldsIdxChains[x]
@@ -408,15 +392,15 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 						f1 := v.Elem().FieldByIndex(fieldChain)
 						zeroVal := reflect.New(f1.Type())
 						zeroVal = zeroVal.Elem() // dereference it
-						if rowsCount < 2 {
-							logl.Printf("rawSelect13-%-2v %-24v %-14v %-14v %+v  => %v", x, cols[x], f1.Kind(), f1.Type(), fieldChain, f1.Interface())
-						}
+						// if rowsCount < 2 {
+						// 	logl.Printf("rawSelect13-%-2v %-24v %-14v %-14v %+v  => %v", x, cols[x], f1.Kind(), f1.Type(), fieldChain, f1.Interface())
+						// }
 						if f1.Interface() != zeroVal.Interface() {
 							nonZeroVal = f1
 							found = true
-							if rowsCount < 2 {
-								logl.Printf("rawSelect14 nonZeroVal is now  %v (%v)", nonZeroVal.Interface(), zeroVal.Interface())
-							}
+							// if rowsCount < 2 {
+							// 	logl.Printf("rawSelect14 nonZeroVal is now  %v (%v)", nonZeroVal.Interface(), zeroVal.Interface())
+							// }
 						}
 					}
 					if found {
@@ -437,7 +421,7 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 			}
 			sliceValue.Set(reflect.Append(sliceValue, v))
 		} else {
-			logl.Printf("rawSelect16: selectOne; select into single struct => appending to list\n")
+			// logl.Printf("rawSelect16: selectOne; select into single struct => appending to list\n")
 			list = append(list, v.Interface())
 		}
 
@@ -448,7 +432,7 @@ func rawselect(m *DbMap, exec SqlExecutor, i interface{}, query string,
 		sliceValue.Set(reflect.MakeSlice(sliceValue.Type(), 0, 0))
 	}
 
-	logl.Printf("rawSelect16: nonFatal is %v", nonFatalErr)
+	// logl.Printf("rawSelect16: nonFatal is %v", nonFatalErr)
 	// logl.Printf("rawSelect07 %v - %v NONFAT: %v", sliceValue.Len(), len(list), nonFatalErr)
 
 	return list, nonFatalErr

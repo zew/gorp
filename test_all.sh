@@ -8,20 +8,27 @@ coveralls_testflags="-v -covermode=count -coverprofile=coverage.out"
 echo "Running unit tests"
 ginkgo -r -race -randomizeAllSpecs -keepGoing -- -test.run TestGorp
 
+
 echo "Testing against mysql"
 export GORP_TEST_DSN=gorptest/gorptest/gorptest
+# https://github.com/ziutek/mymysql/blob/master/examples/database_sql/database_sql.go
+export GORP_TEST_DSN="tcp:10.1.132.25:3306*gorptest/gorptest/gorptest"
 export GORP_TEST_DIALECT=mysql
 go test $coveralls_testflags $GOBUILDFLAG $@ .
 
+
 echo "Testing against gomysql"
 export GORP_TEST_DSN=gorptest:gorptest@/gorptest
+# https://github.com/go-sql-driver/mysql/
+# username:password@protocol(address)/dbname?param=value
+export GORP_TEST_DSN="gorptest:gorptest@tcp(10.1.132.25)/gorptest"
 export GORP_TEST_DIALECT=gomysql
 go test $coveralls_testflags $GOBUILDFLAG $@ .
 
-echo "Testing against postgres"
-export GORP_TEST_DSN="user=gorptest password=gorptest dbname=gorptest sslmode=disable"
-export GORP_TEST_DIALECT=postgres
-go test $coveralls_testflags $GOBUILDFLAG $@ .
+# echo "Testing against postgres"
+# export GORP_TEST_DSN="user=gorptest password=gorptest dbname=gorptest sslmode=disable"
+# export GORP_TEST_DIALECT=postgres
+# go test $coveralls_testflags $GOBUILDFLAG $@ .
 
 echo "Testing against sqlite"
 export GORP_TEST_DSN=/tmp/gorptest.bin

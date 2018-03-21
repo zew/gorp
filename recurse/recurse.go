@@ -1,3 +1,5 @@
+// Recurse retrieves fields of combined and or nested structs,
+// even if those fields are identially named.
 package recurse
 
 import (
@@ -50,8 +52,28 @@ func scalarField(k reflect.Kind) bool {
 	return false
 }
 
+func isScannable(sf reflect.StructField) (scannable bool) {
+
+	typ := sf.Type
+
+	if false {
+		// I failed to create a type *sql.Scanner
+		compareType := reflect.TypeOf(new(sql.Scanner)).Elem()
+		scannable = typ.Implements(compareType)
+	}
+
+	sfInstance := reflect.New(typ).Interface()
+	_, scannable = interface{}(sfInstance).(sql.Scanner)
+
+	if scannable {
+		logl.Printf("Type %q implements sql.Scanner", typ)
+	}
+
+	return scannable
+
+}
+
 func appendMultiFieldIndexChain(chain [][]int, appendix []int) [][]int {
-	// Unbelievable:
 	// Unless we do this *hard copy* of appendix
 	// the appended slice keeps changing
 	detachedNewSlice := make([]int, len(appendix))
@@ -62,7 +84,9 @@ func appendMultiFieldIndexChain(chain [][]int, appendix []int) [][]int {
 }
 
 // Returns all fields of a struct with the given name.
-//
+// If the struct is composed of *several* anonymous structs,
+// with *several* named fields, i.e. 'id', then all those
+// fields are returned.
 func FieldsByName(i interface{}, name string) ([]reflect.StructField, [][]int) {
 
 	name = strings.ToLower(name)
@@ -224,25 +248,4 @@ func ToStructType(i interface{}) (reflect.Type, error) {
 		return nil, fmt.Errorf("gorp: cannot SELECT into this type: %v", reflect.TypeOf(i))
 	}
 	return t, nil
-}
-
-func isScannable(sf reflect.StructField) (scannable bool) {
-
-	typ := sf.Type
-
-	if false {
-		// I failed to create a type *sql.Scanner
-		compareType := reflect.TypeOf(new(sql.Scanner)).Elem()
-		scannable = typ.Implements(compareType)
-	}
-
-	sfInstance := reflect.New(typ).Interface()
-	_, scannable = interface{}(sfInstance).(sql.Scanner)
-
-	if scannable {
-		logl.Printf("Type %q implements sql.Scanner", typ)
-	}
-
-	return scannable
-
 }

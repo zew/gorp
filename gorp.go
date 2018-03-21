@@ -12,12 +12,10 @@
 package gorp
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -25,12 +23,6 @@ import (
 
 	"github.com/zew/gorp/recurse"
 )
-
-var logl = log.New(os.Stdout, "", log.Lshortfile)
-
-func init() {
-	logl.SetOutput(ioutil.Discard)
-}
 
 // OracleString (empty string is null)
 // TODO: move to dialect/oracle?, rename to String?
@@ -61,6 +53,12 @@ func (os OracleString) Value() (driver.Value, error) {
 // it returns nil for its empty value, it needs to implement SqlTyper
 // to have its column type detected properly during table creation.
 type SqlTyper interface {
+	SqlType() driver.Value
+}
+
+// legacySqlTyper prevents breaking clients who depended on the previous
+// SqlTyper interface
+type legacySqlTyper interface {
 	SqlType() driver.Valuer
 }
 
@@ -94,12 +92,6 @@ type TypeConverter interface {
 	FromDb(target interface{}) (CustomScanner, bool)
 }
 
-// Executor exposes the sql.DB and sql.Tx Exec function so that it can be used
-// on internal functions that convert named parameters for the Exec function.
-type executor interface {
-	Exec(query string, args ...interface{}) (sql.Result, error)
-}
-
 // SqlExecutor exposes gorp operations that can be run from Pre/Post
 // hooks.  This hides whether the current operation that triggered the
 // hook is in a transaction.
@@ -107,13 +99,13 @@ type executor interface {
 // See the DbMap function docs for each of the functions below for more
 // information.
 type SqlExecutor interface {
+	WithContext(ctx context.Context) SqlExecutor
 	Get(i interface{}, keys ...interface{}) (interface{}, error)
 	Insert(list ...interface{}) error
 	Update(list ...interface{}) (int64, error)
 	Delete(list ...interface{}) (int64, error)
 	Exec(query string, args ...interface{}) (sql.Result, error)
-	Select(i interface{}, query string,
-		args ...interface{}) ([]interface{}, error)
+	Select(i interface{}, query string, args ...interface{}) ([]interface{}, error)
 	SelectInt(query string, args ...interface{}) (int64, error)
 	SelectNullInt(query string, args ...interface{}) (sql.NullInt64, error)
 	SelectFloat(query string, args ...interface{}) (float64, error)
@@ -163,23 +155,34 @@ func argsString(args ...interface{}) string {
 
 // Calls the Exec function on the executor, but attempts to expand any eligible named
 // query arguments first.
-func exec(e SqlExecutor, query string, args ...interface{}) (sql.Result, error) {
-	var dbMap *DbMap
-	var executor executor
-	switch m := e.(type) {
-	case *DbMap:
-		executor = m.Db
-		dbMap = m
-	case *Transaction:
-		executor = m.tx
-		dbMap = m.dbmap
-	}
+func maybeExpandNamedQueryAndExec(e SqlExecutor, query string, args ...interface{}) (sql.Result, error) {
+	dbMap := extractDbMap(e)
 
 	if len(args) == 1 {
 		query, args = maybeExpandNamedQuery(dbMap, query, args)
 	}
 
-	return executor.Exec(query, args...)
+	return exec(e, query, args...)
+}
+
+func extractDbMap(e SqlExecutor) *DbMap {
+	switch m := e.(type) {
+	case *DbMap:
+		return m
+	case *Transaction:
+		return m.dbmap
+	}
+	return nil
+}
+
+func extractExecutorAndContext(e SqlExecutor) (executor, context.Context) {
+	switch m := e.(type) {
+	case *DbMap:
+		return m.Db, m.ctx
+	case *Transaction:
+		return m.tx, m.ctx
+	}
+	return nil, nil
 }
 
 // maybeExpandNamedQuery checks the given arg to see if it's eligible to be used
@@ -264,20 +267,17 @@ func colToFieldIdxChain(m *DbMap, t reflect.Type, i interface{}, name string, co
 		if tableMapped {
 			colMap := colMapOrNil(table, colName)
 			if colMap != nil {
-				logl.Printf("mapping   %v => %v", colName, colMap.fieldName)
-				colName = strings.ToLower(colMap.fieldName)
+				colName = strings.ToLower(colMap.fieldName) // mapping colName to colMap.fieldname
 			}
 		}
-		fields, indexChains := recurse.FieldsByName(i, colName) // new logic
-		logl.Printf("\tfound %v fields for col %v\n", len(fields), colName)
+		fields, indexChains := recurse.FieldsByName(i, colName) // found fields for colName
 		for _, field := range fields {
 			colsToFields[colName] = append(colsToFields[colName], field)
 		}
 		colIndexChain[x] = append(colIndexChain[x], indexChains...)
 
 		if len(indexChains) < 1 {
-			logl.Printf("adding %q to missing fields\n", colName)
-			missingColNames = append(missingColNames, colName)
+			missingColNames = append(missingColNames, colName) // adding colName to missing fields
 		}
 	}
 	if len(missingColNames) > 0 {
@@ -313,11 +313,9 @@ func fieldByName(val reflect.Value, fieldName string) *reflect.Value {
 	return nil
 }
 
-//
-// toSliceType returns the element type of the given object,
-// if the object is a "*[]*Element" or "*[]Element".
-// If not, returns nil. err is returned
-// if the user was trying to pass a pointer-to-slice but failed.
+// ToSliceType returns the element type of the given object, if the object is a
+// "*[]*Element" or "*[]Element". If not, returns nil.
+// err is returned if the user was trying to pass a pointer-to-slice but failed.
 func ToSliceType(i interface{}) (reflect.Type, error) {
 	t := reflect.TypeOf(i)
 	if t.Kind() != reflect.Ptr {
